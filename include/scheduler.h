@@ -3,14 +3,14 @@
 
 #include "process.h"
 
-// Core simulation state [cite: 973-983]
+// Core simulation state 
 typedef struct {
     Process *processes;    // Array of all processes
     int num_processes;     // Number of processes
     int current_time;      // Current simulation time
 } SchedulerState;
 
-// Discrete-event definitions [cite: 994-1005]
+// Discrete-event definitions
 typedef enum {
     EVENT_ARRIVAL,
     EVENT_COMPLETION,
@@ -25,7 +25,7 @@ typedef struct Event {
     struct Event *next;
 } Event;
 
-// Function prototypes for the algorithms [cite: 984-986]
+// Function prototypes for the algorithms
 int schedule_fcfs(SchedulerState *state);
 int schedule_sjf(SchedulerState *state);
 int schedule_stcf(SchedulerState *state);
