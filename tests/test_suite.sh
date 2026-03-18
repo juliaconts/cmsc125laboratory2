@@ -8,7 +8,7 @@ echo "========================================="
 make clean && make
 
 # Define algorithms and the test workload
-ALGORITHMS=ALGORITHMS=("SJF" "STCF")
+ALGORITHMS=("SJF" "STCF")
 WORKLOAD="tests/workload1.txt"
 
 # Loop through each algorithm and run the simulator

@@ -31,4 +31,7 @@ int schedule_sjf(SchedulerState *state);
 int schedule_stcf(SchedulerState *state);
 int schedule_rr(SchedulerState *state, int quantum);
 
+int schedule_sjf(SchedulerState *state);
+int schedule_stcf(SchedulerState *state);
+
 #endif

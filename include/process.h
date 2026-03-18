@@ -21,4 +21,6 @@ typedef struct {
     int time_in_queue;     // Allotment tracking 
 } Process;
 
+
+
 #endif

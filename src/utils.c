@@ -52,3 +52,42 @@ bool all_complete(Process *processes, int num_processes) {
     }
     return true;
 }
+
+Process* dequeue_shortest(Queue *q) {
+    if (q->head == NULL) return NULL;
+
+    Node *prev = NULL, *curr = q->head;
+    Node *min_prev = NULL, *min_node = q->head;
+
+    // Scan the queue for the shortest remaining time
+    while (curr != NULL) {
+        if (curr->process->remaining_time < min_node->process->remaining_time) {
+            min_node = curr;
+            min_prev = prev;
+        } else if (curr->process->remaining_time == min_node->process->remaining_time) {
+            // Tie-breaker: whoever arrived first wins
+            if (curr->process->arrival_time < min_node->process->arrival_time) {
+                min_node = curr;
+                min_prev = prev;
+            }
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // Unlink the node with the shortest time
+    if (min_prev == NULL) {
+        q->head = min_node->next; // Shortest was at the head
+    } else {
+        min_prev->next = min_node->next; // Shortest was in the middle/end
+    }
+
+    if (min_node == q->tail) {
+        q->tail = min_prev; // Update tail if we removed the last item
+    }
+
+    Process *p = min_node->process;
+    free(min_node);
+    q->size--;
+    return p;
+}
