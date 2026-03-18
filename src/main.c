@@ -3,6 +3,7 @@
 #include <string.h>
 #include "process.h"
 #include "scheduler.h"
+#include "metrics.h"
 
 // Helper function to parse the workload file
 Process* parse_workload_file(const char *filename, int *num_processes) {
@@ -94,7 +95,17 @@ int main(int argc, char *argv[]) {
 
     printf("Successfully loaded %d processes.\n", state.num_processes);
 
-    // TODO: Student B will hook up the simulate_scheduler() loop here
+    // Route to the correct algorithm based on the CLI argument
+    if (strcmp(algorithm, "SJF") == 0) {
+        schedule_sjf(&state);
+    } else if (strcmp(algorithm, "STCF") == 0) {
+        schedule_stcf(&state);
+    } else {
+        printf("Algorithm %s is pending Student B's implementation!\n", algorithm);
+    }
+
+    // Call Student A's Week 3 Comparative Table
+    print_comparative_table(state.processes, state.num_processes, algorithm);
 
     // Clean up memory before exit to prevent leaks
     free(state.processes);
