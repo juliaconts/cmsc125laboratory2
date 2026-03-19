@@ -2,23 +2,30 @@
 #define SCHEDULER_H
 
 #include "process.h"
+#include "gantt.h"
 
-// Core simulation state 
-typedef struct {
-    Process *processes;    // Array of all processes
-    int num_processes;     // Number of processes
-    int current_time;      // Current simulation time
+// Core simulation state
+typedef struct
+{
+    Process *processes; // Array of all processes
+    int num_processes;  // Number of processes
+    int current_time;   // Current simulation time
+
+    GanttBlock gantt_blocks[MAX_BLOCKS];
+    int num_blocks;
 } SchedulerState;
 
 // Discrete-event definitions
-typedef enum {
+typedef enum
+{
     EVENT_ARRIVAL,
     EVENT_COMPLETION,
     EVENT_QUANTUM_EXPIRE,
     EVENT_PRIORITY_BOOST
 } EventType;
 
-typedef struct Event {
+typedef struct Event
+{
     int time;
     EventType type;
     Process *process;

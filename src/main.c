@@ -4,6 +4,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "metrics.h"
+#include "gantt.h"
 
 // Helper function to parse the workload file
 Process *parse_workload_file(const char *filename, int *num_processes)
@@ -105,12 +106,14 @@ int main(int argc, char *argv[])
 
     SchedulerState state;
     state.processes = parse_workload_file(input_file, &state.num_processes);
-    state.current_time = 0;
-
     if (!state.processes)
     {
         return 1; // Exit if parsing failed
     }
+
+    state.current_time = 0;
+    state.num_blocks = 0;
+    init_gantt_chart(state.gantt_blocks, MAX_BLOCKS);
 
     printf("Successfully loaded %d processes.\n", state.num_processes);
 
@@ -135,6 +138,8 @@ int main(int argc, char *argv[])
     else
     {
         printf("Algorithm %s is pending Student B's implementation!\n", algorithm);
+        free(state.processes);
+        return 1;
     }
 
     // Call Student A's Week 3 Comparative Table
