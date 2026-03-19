@@ -76,6 +76,7 @@ int main(int argc, char *argv[])
 {
     char *input_file = NULL;
     char *algorithm = NULL;
+    int quantum = 30; // default time quantum
 
     // Command-line argument parser
     for (int i = 1; i < argc; i++)
@@ -87,6 +88,10 @@ int main(int argc, char *argv[])
         else if (strncmp(argv[i], "--algorithm=", 12) == 0)
         {
             algorithm = argv[i] + 12;
+        }
+        else if (strncmp(argv[i], "--quantum=", 10) == 0)
+        {
+            quantum = atoi(argv[i] + 10);
         }
     }
 
@@ -114,6 +119,10 @@ int main(int argc, char *argv[])
     if (strcmp(algorithm, "FCFS") == 0)
     {
         schedule_fcfs(&state);
+    }
+    else if (strcmp(algorithm, "RR") == 0)
+    {
+        schedule_rr(&state, quantum);
     }
     else if (strcmp(algorithm, "SJF") == 0)
     {
