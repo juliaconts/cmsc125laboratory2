@@ -2,15 +2,15 @@
 #include <string.h>
 #include "scheduler.h"
 #include "process.h"
-#include "utils.h" // Queue
+#include "utils.h"
 #include "gantt.h"
 
 #define MAX_BLOCKS 10000
-#define MAX_MESSAGES 1000
 
 int schedule_rr(SchedulerState *state, int quantum)
 {
-    printf("Using time quantum q=%d\n", quantum);
+    printf("\nRunning RR Scheduler...");
+    printf("\nUsing time quantum q=%d\n", quantum);
 
     Queue ready_queue;
     init_queue(&ready_queue);
@@ -21,61 +21,50 @@ int schedule_rr(SchedulerState *state, int quantum)
 
     Process *current = NULL;
     int time_slice = 0;
+
     char prev_pid[16] = "";
 
     state->num_blocks = 0;
     init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
 
-    // Collect messages to print later
-    char messages[MAX_MESSAGES][128];
-    int num_messages = 0;
-
     while (completed < state->num_processes)
     {
-        // Add arriving processes to ready queue
+        // Add arriving processes
         for (int i = 0; i < state->num_processes; i++)
         {
-            Process *p = &state->processes[i];
-            if (p->arrival_time == time)
-                enqueue(&ready_queue, p);
+            if (state->processes[i].arrival_time == time)
+            {
+                enqueue(&ready_queue, &state->processes[i]);
+            }
         }
 
-        // Pick next process if CPU is idle
+        // If CPU idle, get next process
         if (current == NULL && !is_empty(&ready_queue))
         {
-            current = dequeue(&ready_queue);
-            time_slice = 0;
+            Process *next = dequeue(&ready_queue);
 
-            // First execution → response time
-            if (current->start_time == -1)
-                current->start_time = time;
-
-            // Collect preemption/resume messages
-            if (strcmp(prev_pid, current->pid) != 0 && prev_pid[0] != '\0')
+            // Count context switch ONLY if switching from another process
+            if (prev_pid[0] != '\0' && strcmp(prev_pid, next->pid) != 0)
             {
-                snprintf(messages[num_messages++],
-                         128,
-                         "Process %s was preempted at t=%d (remaining: %d)",
-                         prev_pid, time, current->remaining_time);
-
-                snprintf(messages[num_messages++],
-                         128,
-                         "Process %s resumed at t=%d",
-                         current->pid, time);
-
                 context_switches++;
             }
+
+            current = next;
+            time_slice = 0;
+
+            // First run → response time
+            if (current->start_time == -1)
+                current->start_time = time;
 
             strcpy(prev_pid, current->pid);
         }
 
-        // Execute current process
+        // Execute
         if (current != NULL)
         {
             current->remaining_time--;
             time_slice++;
 
-            // Record in Gantt chart
             record_gantt(state->gantt_blocks, &state->num_blocks,
                          current->pid, time, 1);
 
@@ -83,26 +72,28 @@ int schedule_rr(SchedulerState *state, int quantum)
             if (current->remaining_time == 0)
             {
                 current->finish_time = time + 1;
-                current->turnaround_time = current->finish_time - current->arrival_time;
-                current->waiting_time = current->turnaround_time - current->burst_time;
-                current->response_time = current->start_time - current->arrival_time;
+                current->turnaround_time =
+                    current->finish_time - current->arrival_time;
+                current->waiting_time =
+                    current->turnaround_time - current->burst_time;
+                current->response_time =
+                    current->start_time - current->arrival_time;
 
                 completed++;
                 current = NULL;
-                context_switches++;
             }
-            // Quantum expired → preempt
+            // Quantum expired → PREEMPT
             else if (time_slice == quantum)
             {
                 enqueue(&ready_queue, current);
                 current = NULL;
-                context_switches++;
             }
         }
         else
         {
             // CPU idle
-            record_gantt(state->gantt_blocks, &state->num_blocks, "-", time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks,
+                         "-", time, 1);
         }
 
         time++;
@@ -110,22 +101,18 @@ int schedule_rr(SchedulerState *state, int quantum)
 
     state->current_time = time;
 
-    // Print Gantt chart
+    // Print Gantt chart FIRST
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
 
     // Compute average response time
-    double total_response = 0.0;
+    double total_response = 0;
     for (int i = 0; i < state->num_processes; i++)
         total_response += state->processes[i].response_time;
 
     double avg_response = total_response / state->num_processes;
 
     printf("\nTotal context switches: %d\n", context_switches);
-    printf("Average response time: %.2f\n\n", avg_response);
-
-    // Print preemption/resume messages collected during execution
-    for (int i = 0; i < num_messages; i++)
-        printf("%s\n", messages[i]);
+    printf("Average response time: %.2f\n", avg_response);
 
     return 0;
 }
