@@ -46,7 +46,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
     state->num_blocks = 0;
     init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
 
-    // ── Analysis tracking ─────────────────────────────────────────────
+    // Analysis tracking
     // final_queue[i]          : highest queue number the process ever reached
     // first_demotion_time[i]  : sim time of first demotion (-1 = never demoted)
     int final_queue[MAX_PROCESSES];
@@ -62,7 +62,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
 
     while (completed < state->num_processes)
     {
-        // ── 1. Handle arrivals ────────────────────────────────────────
+        // 1. Handle arrivals
         for (int i = 0; i < state->num_processes; i++)
         {
             // Guard remaining_time > 0 so a finished process that happens
@@ -77,19 +77,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             }
         }
 
-        // ── 2. Priority Boost ─────────────────────────────────────────
-        //
-        // FIX 1: The original drained ALL queues including Q0, then
-        //        re-enqueued into Q0.  That is a no-op for Q0 processes
-        //        but it still resets their time_in_queue unfairly and
-        //        can corrupt the queue's FIFO order.  Start the drain
-        //        from i=1 so Q0 is left untouched.
-        //
-        // FIX 2: The original immediately re-picked a new current inside
-        //        the boost block.  That meant the boosted process jumped
-        //        the queue ahead of processes that just arrived in step 1.
-        //        Removed — step 3 picks fairly for everyone.
-        //
+        // 2. Priority Boost
         if (cfg->boost_period > 0 && time > 0 && time % cfg->boost_period == 0)
         {
             printf("t=%d: Priority boost\n", time);
@@ -119,7 +107,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             // Step 3 selects the next process fairly.
         }
 
-        // ── 3. Pick next process if CPU idle ─────────────────────────
+        // 3. Pick next process if CPU idle
         if (current == NULL)
         {
             for (int i = 0; i < cfg->num_queues; i++)
@@ -138,7 +126,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             }
         }
 
-        // ── 4. Execute current process ────────────────────────────────
+        // 4. Execute current process
         if (current != NULL)
         {
             current->remaining_time--;
@@ -148,7 +136,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             record_gantt(state->gantt_blocks, &state->num_blocks,
                          current->pid, time, 1);
 
-            // ✅ Process finished
+            // Process finished
             if (current->remaining_time == 0)
             {
                 current->finish_time = time + 1;
@@ -164,16 +152,6 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             }
 
             // Allotment exhausted → demote
-            //
-            // FIX 3: The original demoted unconditionally when the
-            //        allotment ran out, even at the bottom queue.
-            //        At the bottom (FCFS) queue the allotment field is
-            //        meaningless — a process stuck there would still be
-            //        re-enqueued into the same queue with time_in_queue=0
-            //        and keep running forever without ever finishing if
-            //        its remaining_time is large.  Guard with
-            //        priority < num_queues-1 so the bottom queue is
-            //        truly FCFS with no preemption from this branch.
             else if (current->priority < cfg->num_queues - 1 &&
                      cfg->allotment[current->priority] > 0 &&
                      current->time_in_queue >= cfg->allotment[current->priority])
@@ -203,15 +181,6 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             }
 
             // Quantum expiration (within the same priority level)
-            //
-            // FIX 4: Use >= instead of == so the check can never be
-            //        silently skipped if time_slice somehow overshoots
-            //        (e.g. burst finishes mid-quantum and you later add
-            //        multi-tick steps).
-            //
-            // FIX 5: Skip this branch entirely for the bottom queue
-            //        (time_quantum < 0) — that queue is FCFS and must
-            //        never be preempted by a quantum expiry.
             else if (cfg->time_quantum[current->priority] > 0 &&
                      time_slice >= cfg->time_quantum[current->priority])
             {
@@ -245,10 +214,10 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
     fflush(stdout);
 
-    // ── Analysis Report ───────────────────────────────────────────────
+    // Analysis Report
     printf("\n=== Analysis ===\n");
 
-    // ── Interactive jobs: never demoted (stayed in Q0) ────────────────
+    // Interactive jobs: never demoted (stayed in Q0)
     // Sorted by burst_time ascending so the shortest job is reported first.
     printf("Interactive job (short burst) behavior:\n");
     double resp_sum_interactive = 0.0;
@@ -283,7 +252,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
         printf("  - All processes were eventually demoted (no pure interactive jobs)\n");
     }
 
-    // ── Long-running jobs: demoted at least once ──────────────────────
+    // Long-running jobs: demoted at least once
     // Report the process with the highest final queue level;
     // break ties by largest burst_time (most CPU-intensive).
     printf("\nLong-running job behavior:\n");
@@ -318,7 +287,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
         printf("  - No long-running jobs were demoted\n");
     }
 
-    // ── Overall verdict ───────────────────────────────────────────────
+    // Overall verdict
     // Responsiveness check: avg response of interactive jobs vs long-running
     int any_interactive = (interactive_count > 0);
     int any_longrunning = (longest_idx >= 0);
