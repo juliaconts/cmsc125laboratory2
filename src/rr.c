@@ -13,7 +13,7 @@ int schedule_rr(SchedulerState *state, int quantum)
     printf("\nUsing time quantum q=%d\n", quantum);
 
     Queue ready_queue;
-    init_queue(&ready_queue);
+    init_queue(&ready_queue); // starts with an empty FIFO queue
 
     int completed = 0;
     int time = state->current_time;
@@ -27,9 +27,10 @@ int schedule_rr(SchedulerState *state, int quantum)
     state->num_blocks = 0;
     init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
 
+    // runs one tick at a time until every process has finished
     while (completed < state->num_processes)
     {
-        // Add arriving processes
+        // 1. Add newly arriving processes (checks every process to see if it arrives at this tick)
         for (int i = 0; i < state->num_processes; i++)
         {
             if (state->processes[i].arrival_time == time)
@@ -38,7 +39,7 @@ int schedule_rr(SchedulerState *state, int quantum)
             }
         }
 
-        // If CPU idle, get next process
+        // 2. If CPU idle, select the next process
         if (current == NULL && !is_empty(&ready_queue))
         {
             Process *next = dequeue(&ready_queue);
@@ -52,14 +53,14 @@ int schedule_rr(SchedulerState *state, int quantum)
             current = next;
             time_slice = 0;
 
-            // First run → response time
+            // Record the very first run this process gets the CPU
             if (current->start_time == -1)
                 current->start_time = time;
 
-            strcpy(prev_pid, current->pid);
+            strcpy(prev_pid, current->pid); // keeps track who is running for the next context-switch comparison
         }
 
-        // Execute
+        // 3. Execute
         if (current != NULL)
         {
             current->remaining_time--;
@@ -68,7 +69,7 @@ int schedule_rr(SchedulerState *state, int quantum)
             record_gantt(state->gantt_blocks, &state->num_blocks,
                          current->pid, time, 1);
 
-            // Process finished
+            // Case A: Process finished
             if (current->remaining_time == 0)
             {
                 current->finish_time = time + 1;
@@ -82,7 +83,7 @@ int schedule_rr(SchedulerState *state, int quantum)
                 completed++;
                 current = NULL;
             }
-            // Quantum expired → PREEMPT
+            // Case B: Quantum expired → PREEMPT
             else if (time_slice == quantum)
             {
                 enqueue(&ready_queue, current);
@@ -101,7 +102,7 @@ int schedule_rr(SchedulerState *state, int quantum)
 
     state->current_time = time;
 
-    // Print Gantt chart FIRST
+    // Print Gantt chart
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
 
     // Compute average response time

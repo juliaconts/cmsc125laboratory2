@@ -1,5 +1,6 @@
 #include "gantt.h"
 
+// initializes the gantt chart
 void init_gantt_chart(GanttBlock *blocks, int max_blocks)
 {
     for (int i = 0; i < max_blocks; i++)
@@ -10,6 +11,7 @@ void init_gantt_chart(GanttBlock *blocks, int max_blocks)
     }
 }
 
+// record the gantt chart
 void record_gantt(GanttBlock *blocks, int *num_blocks, const char *pid, int start_time, int duration)
 {
     if (*num_blocks > 0 && strcmp(blocks[*num_blocks - 1].pid, pid) == 0)
@@ -28,6 +30,7 @@ void record_gantt(GanttBlock *blocks, int *num_blocks, const char *pid, int star
     }
 }
 
+// prints the gantt chart
 void print_gantt_chart(GanttBlock *blocks, int num_blocks)
 {
     printf("\n=== Gantt Chart ===\n");
