@@ -46,6 +46,17 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
     state->num_blocks = 0;
     init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
 
+    // ── Analysis tracking ─────────────────────────────────────────────
+    // final_queue[i]          : highest queue number the process ever reached
+    // first_demotion_time[i]  : sim time of first demotion (-1 = never demoted)
+    int final_queue[MAX_PROCESSES];
+    int first_demotion_time[MAX_PROCESSES];
+    for (int i = 0; i < state->num_processes; i++)
+    {
+        final_queue[i] = 0;
+        first_demotion_time[i] = -1;
+    }
+
     printf("=== Execution Trace ===\n");
     fflush(stdout);
 
@@ -152,7 +163,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
                 time_slice = 0;
             }
 
-            // 🔽 Allotment exhausted → demote
+            // Allotment exhausted → demote
             //
             // FIX 3: The original demoted unconditionally when the
             //        allotment ran out, even at the bottom queue.
@@ -172,12 +183,26 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
                 printf("t=%d: Process %s -> Q%d\n",
                        time + 1, current->pid, current->priority);
                 fflush(stdout);
+
+                // Track highest queue reached and time of first demotion
+                for (int i = 0; i < state->num_processes; i++)
+                {
+                    if (&state->processes[i] == current)
+                    {
+                        if (current->priority > final_queue[i])
+                            final_queue[i] = current->priority;
+                        if (first_demotion_time[i] == -1)
+                            first_demotion_time[i] = time + 1;
+                        break;
+                    }
+                }
+
                 enqueue(&queues[current->priority], current);
                 current = NULL;
                 time_slice = 0;
             }
 
-            // ✅ Quantum expiration (within the same priority level)
+            // Quantum expiration (within the same priority level)
             //
             // FIX 4: Use >= instead of == so the check can never be
             //        silently skipped if time_slice somehow overshoots
@@ -220,5 +245,111 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
     fflush(stdout);
 
+    // ── Analysis Report ───────────────────────────────────────────────
+    printf("\n=== Analysis ===\n");
+
+    // ── Interactive jobs: never demoted (stayed in Q0) ────────────────
+    // Sorted by burst_time ascending so the shortest job is reported first.
+    printf("Interactive job (short burst) behavior:\n");
+    double resp_sum_interactive = 0.0;
+    int interactive_count = 0;
+    int shortest_idx = -1;
+
+    for (int i = 0; i < state->num_processes; i++)
+    {
+        if (first_demotion_time[i] == -1) /* never demoted = stayed in Q0 */
+        {
+            resp_sum_interactive += state->processes[i].response_time;
+            interactive_count++;
+            if (shortest_idx == -1 ||
+                state->processes[i].burst_time <
+                    state->processes[shortest_idx].burst_time)
+            {
+                shortest_idx = i;
+            }
+        }
+    }
+
+    if (interactive_count > 0)
+    {
+        Process *sp = &state->processes[shortest_idx];
+        printf("  - Process %s stayed in Q0 (completed in %d time units)\n",
+               sp->pid, sp->burst_time);
+        printf("  - Average response time: %.1f\n",
+               resp_sum_interactive / interactive_count);
+    }
+    else
+    {
+        printf("  - All processes were eventually demoted (no pure interactive jobs)\n");
+    }
+
+    // ── Long-running jobs: demoted at least once ──────────────────────
+    // Report the process with the highest final queue level;
+    // break ties by largest burst_time (most CPU-intensive).
+    printf("\nLong-running job behavior:\n");
+    int longest_idx = -1;
+
+    for (int i = 0; i < state->num_processes; i++)
+    {
+        if (first_demotion_time[i] != -1)
+        {
+            if (longest_idx == -1 ||
+                final_queue[i] > final_queue[longest_idx] ||
+                (final_queue[i] == final_queue[longest_idx] &&
+                 state->processes[i].burst_time >
+                     state->processes[longest_idx].burst_time))
+            {
+                longest_idx = i;
+            }
+        }
+    }
+
+    if (longest_idx >= 0)
+    {
+        Process *lp = &state->processes[longest_idx];
+        printf("  - Process %s demoted to Q%d after %d time units\n",
+               lp->pid, final_queue[longest_idx],
+               first_demotion_time[longest_idx]);
+        printf("  - Turnaround time: %d (fair for its burst time of %d)\n",
+               lp->turnaround_time, lp->burst_time);
+    }
+    else
+    {
+        printf("  - No long-running jobs were demoted\n");
+    }
+
+    // ── Overall verdict ───────────────────────────────────────────────
+    // Responsiveness check: avg response of interactive jobs vs long-running
+    int any_interactive = (interactive_count > 0);
+    int any_longrunning = (longest_idx >= 0);
+
+    if (any_interactive && any_longrunning)
+    {
+        double resp_long = 0.0;
+        int long_count = 0;
+        for (int i = 0; i < state->num_processes; i++)
+        {
+            if (first_demotion_time[i] != -1)
+            {
+                resp_long += state->processes[i].response_time;
+                long_count++;
+            }
+        }
+        double avg_resp_interactive = resp_sum_interactive / interactive_count;
+        double avg_resp_long = resp_long / long_count;
+
+        if (avg_resp_interactive <= avg_resp_long)
+            printf("\nYour MLFQ successfully balanced responsiveness and fairness.\n");
+        else
+            printf("\nYour MLFQ completed all jobs but long-running processes had "
+                   "better response times than interactive ones — consider "
+                   "tuning your allotment or boost period.\n");
+    }
+    else
+    {
+        printf("\nYour MLFQ completed all jobs successfully.\n");
+    }
+
+    fflush(stdout);
     return 0;
 }
