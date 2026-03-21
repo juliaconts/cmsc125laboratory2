@@ -3,6 +3,7 @@
 
 #include "process.h"
 #include "gantt.h"
+#include "mlfq.h"
 
 // Core simulation state
 typedef struct
@@ -37,8 +38,6 @@ int schedule_fcfs(SchedulerState *state);
 int schedule_sjf(SchedulerState *state);
 int schedule_stcf(SchedulerState *state);
 int schedule_rr(SchedulerState *state, int quantum);
-
-int schedule_sjf(SchedulerState *state);
-int schedule_stcf(SchedulerState *state);
+int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg);
 
 #endif

@@ -1,0 +1,224 @@
+#include <stdio.h>
+#include <string.h>
+#include "scheduler.h"
+#include "utils.h"
+#include "gantt.h"
+#include "mlfq.h"
+
+int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
+{
+    printf("\n=== MLFQ Configuration ===\n");
+    for (int i = 0; i < cfg->num_queues; i++)
+    {
+        if (cfg->time_quantum[i] < 0)
+        {
+            printf("Queue %d: FCFS (lowest priority)\n", i);
+        }
+        else
+        {
+            printf("Queue %d: q=%d, allotment=%d\n",
+                   i, cfg->time_quantum[i], cfg->allotment[i]);
+        }
+    }
+    printf("Boost period: %d\n\n", cfg->boost_period);
+    fflush(stdout);
+
+    // Initialize queues per priority level
+    Queue queues[MAX_QUEUES];
+    for (int i = 0; i < cfg->num_queues; i++)
+    {
+        init_queue(&queues[i]);
+    }
+
+    // Initialize processes
+    for (int i = 0; i < state->num_processes; i++)
+    {
+        state->processes[i].priority = 0;
+        state->processes[i].time_in_queue = 0;
+    }
+
+    int time = state->current_time;
+    int completed = 0;
+
+    Process *current = NULL;
+    int time_slice = 0;
+
+    state->num_blocks = 0;
+    init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
+
+    printf("=== Execution Trace ===\n");
+    fflush(stdout);
+
+    while (completed < state->num_processes)
+    {
+        // ── 1. Handle arrivals ────────────────────────────────────────
+        for (int i = 0; i < state->num_processes; i++)
+        {
+            // Guard remaining_time > 0 so a finished process that happens
+            // to share an arrival_time value is never double-enqueued.
+            if (state->processes[i].arrival_time == time &&
+                state->processes[i].remaining_time > 0)
+            {
+                enqueue(&queues[0], &state->processes[i]);
+                printf("t=%d: Process %s enters Q0\n",
+                       time, state->processes[i].pid);
+                fflush(stdout);
+            }
+        }
+
+        // ── 2. Priority Boost ─────────────────────────────────────────
+        //
+        // FIX 1: The original drained ALL queues including Q0, then
+        //        re-enqueued into Q0.  That is a no-op for Q0 processes
+        //        but it still resets their time_in_queue unfairly and
+        //        can corrupt the queue's FIFO order.  Start the drain
+        //        from i=1 so Q0 is left untouched.
+        //
+        // FIX 2: The original immediately re-picked a new current inside
+        //        the boost block.  That meant the boosted process jumped
+        //        the queue ahead of processes that just arrived in step 1.
+        //        Removed — step 3 picks fairly for everyone.
+        //
+        if (cfg->boost_period > 0 && time > 0 && time % cfg->boost_period == 0)
+        {
+            printf("t=%d: Priority boost\n", time);
+            fflush(stdout);
+
+            // Drain Q1..Qn-1 into Q0  (leave Q0 alone)
+            for (int i = 1; i < cfg->num_queues; i++)
+            {
+                while (!is_empty(&queues[i]))
+                {
+                    Process *p = dequeue(&queues[i]);
+                    p->priority = 0;
+                    p->time_in_queue = 0;
+                    enqueue(&queues[0], p);
+                }
+            }
+
+            // Preempt the currently running process
+            if (current != NULL)
+            {
+                current->priority = 0;
+                current->time_in_queue = 0;
+                enqueue(&queues[0], current);
+                current = NULL;
+                time_slice = 0;
+            }
+            // Step 3 selects the next process fairly.
+        }
+
+        // ── 3. Pick next process if CPU idle ─────────────────────────
+        if (current == NULL)
+        {
+            for (int i = 0; i < cfg->num_queues; i++)
+            {
+                if (!is_empty(&queues[i]))
+                {
+                    current = dequeue(&queues[i]);
+                    time_slice = 0;
+                    if (current->start_time == -1)
+                        current->start_time = time;
+                    printf("t=%d: Process %s selected from Q%d\n",
+                           time, current->pid, current->priority);
+                    fflush(stdout);
+                    break;
+                }
+            }
+        }
+
+        // ── 4. Execute current process ────────────────────────────────
+        if (current != NULL)
+        {
+            current->remaining_time--;
+            current->time_in_queue++;
+            time_slice++;
+
+            record_gantt(state->gantt_blocks, &state->num_blocks,
+                         current->pid, time, 1);
+
+            // ✅ Process finished
+            if (current->remaining_time == 0)
+            {
+                current->finish_time = time + 1;
+                current->turnaround_time = current->finish_time - current->arrival_time;
+                current->waiting_time = current->turnaround_time - current->burst_time;
+                current->response_time = current->start_time - current->arrival_time;
+
+                printf("t=%d: Process %s completed\n", time + 1, current->pid);
+                fflush(stdout);
+                completed++;
+                current = NULL;
+                time_slice = 0;
+            }
+
+            // 🔽 Allotment exhausted → demote
+            //
+            // FIX 3: The original demoted unconditionally when the
+            //        allotment ran out, even at the bottom queue.
+            //        At the bottom (FCFS) queue the allotment field is
+            //        meaningless — a process stuck there would still be
+            //        re-enqueued into the same queue with time_in_queue=0
+            //        and keep running forever without ever finishing if
+            //        its remaining_time is large.  Guard with
+            //        priority < num_queues-1 so the bottom queue is
+            //        truly FCFS with no preemption from this branch.
+            else if (current->priority < cfg->num_queues - 1 &&
+                     cfg->allotment[current->priority] > 0 &&
+                     current->time_in_queue >= cfg->allotment[current->priority])
+            {
+                current->priority++;
+                current->time_in_queue = 0;
+                printf("t=%d: Process %s -> Q%d\n",
+                       time + 1, current->pid, current->priority);
+                fflush(stdout);
+                enqueue(&queues[current->priority], current);
+                current = NULL;
+                time_slice = 0;
+            }
+
+            // ✅ Quantum expiration (within the same priority level)
+            //
+            // FIX 4: Use >= instead of == so the check can never be
+            //        silently skipped if time_slice somehow overshoots
+            //        (e.g. burst finishes mid-quantum and you later add
+            //        multi-tick steps).
+            //
+            // FIX 5: Skip this branch entirely for the bottom queue
+            //        (time_quantum < 0) — that queue is FCFS and must
+            //        never be preempted by a quantum expiry.
+            else if (cfg->time_quantum[current->priority] > 0 &&
+                     time_slice >= cfg->time_quantum[current->priority])
+            {
+                // Allotment accumulates across quanta — do NOT reset
+                // time_in_queue here.
+                enqueue(&queues[current->priority], current);
+                current = NULL;
+                time_slice = 0;
+            }
+
+            // Periodic flush so output appears even during long FCFS
+            // stretches where none of the above branches fire.
+            else if (time % 50 == 0)
+            {
+                fflush(stdout);
+            }
+        }
+        else
+        {
+            // CPU idle
+            record_gantt(state->gantt_blocks, &state->num_blocks, "-", time, 1);
+        }
+
+        time++;
+    }
+
+    state->current_time = time;
+
+    printf("\n");
+    fflush(stdout);
+    print_gantt_chart(state->gantt_blocks, state->num_blocks);
+    fflush(stdout);
+
+    return 0;
+}

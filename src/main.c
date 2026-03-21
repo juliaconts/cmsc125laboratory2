@@ -5,6 +5,7 @@
 #include "scheduler.h"
 #include "metrics.h"
 #include "gantt.h"
+#include "mlfq.h"
 
 // Helper function to parse the workload file
 Process *parse_workload_file(const char *filename, int *num_processes)
@@ -73,10 +74,56 @@ Process *parse_workload_file(const char *filename, int *num_processes)
     return processes;
 }
 
+int load_mlfq_config(const char *filename, MLFQConfig *cfg)
+{
+    FILE *file = fopen(filename, "r");
+    if (!file)
+    {
+        perror("Error opening MLFQ config file");
+        return -1;
+    }
+
+    cfg->num_queues = 0;
+    cfg->boost_period = 0;
+    char line[256];
+
+    while (fgets(line, sizeof(line), file))
+    {
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
+        {
+            continue;
+        }
+
+        if (strncmp(line, "BOOST_PERIOD", 12) == 0)
+        {
+            sscanf(line, "BOOST_PERIOD %d", &cfg->boost_period);
+        }
+        else
+        {
+            char qid[10];
+            int quantum, allot;
+
+            if (sscanf(line, "%s %d %d", qid, &quantum, &allot) == 3)
+            {
+                int i = cfg->num_queues;
+
+                cfg->time_quantum[i] = quantum;
+                cfg->allotment[i] = allot;
+
+                cfg->num_queues++;
+            }
+        }
+    }
+
+    fclose(file);
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     char *input_file = NULL;
     char *algorithm = NULL;
+    char *mlfq_config_file = NULL;
     int quantum = 30; // default time quantum
 
     // Command-line argument parser
@@ -93,6 +140,10 @@ int main(int argc, char *argv[])
         else if (strncmp(argv[i], "--quantum=", 10) == 0)
         {
             quantum = atoi(argv[i] + 10);
+        }
+        else if (strncmp(argv[i], "--mlfq-config=", 14) == 0)
+        {
+            mlfq_config_file = argv[i] + 14;
         }
     }
 
@@ -134,6 +185,25 @@ int main(int argc, char *argv[])
     else if (strcmp(algorithm, "STCF") == 0)
     {
         schedule_stcf(&state);
+    }
+    else if (strcmp(algorithm, "MLFQ") == 0)
+    {
+        if (!mlfq_config_file)
+        {
+            printf("MLFQ requires --mlfq-config=<FILE>\n");
+            free(state.processes);
+            return 1;
+        }
+
+        MLFQConfig cfg;
+
+        if (load_mlfq_config(mlfq_config_file, &cfg) != 0)
+        {
+            free(state.processes);
+            return 1;
+        }
+
+        schedule_mlfq(&state, &cfg);
     }
     else
     {
