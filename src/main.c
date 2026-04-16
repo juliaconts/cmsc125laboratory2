@@ -47,15 +47,15 @@ Process *parse_workload_file(const char *filename, int *num_processes)
             if (*num_processes >= capacity)
             {
                 capacity *= 2;
-                Process *temp = realloc(processes, capacity * sizeof(Process));
-                if (!temp)
+                Process *temp_ptr = realloc(processes, capacity * sizeof(Process));
+                if (temp_ptr == NULL)
                 {
-                    perror("Realloc failed");
+                    perror("Critical Error: Memory reallocation failed");
                     free(processes);
                     fclose(file);
                     return NULL;
                 }
-                processes = temp;
+                processes = temp_ptr;
             }
 
             init_process(&processes[*num_processes], pid, arrival, burst);
