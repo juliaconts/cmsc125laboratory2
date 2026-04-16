@@ -47,26 +47,37 @@ Process *parse_workload_file(const char *filename, int *num_processes)
             if (*num_processes >= capacity)
             {
                 capacity *= 2;
-                processes = realloc(processes, capacity * sizeof(Process));
+                Process *temp = realloc(processes, capacity * sizeof(Process));
+                if (!temp)
+                {
+                    perror("Realloc failed");
+                    free(processes);
+                    fclose(file);
+                    return NULL;
+                }
+                processes = temp;
             }
 
-            // Initialize process fields securely
-            strncpy(processes[*num_processes].pid, pid, 15);
-            processes[*num_processes].pid[15] = '\0'; // Ensure null-termination
-            processes[*num_processes].arrival_time = arrival;
-            processes[*num_processes].burst_time = burst;
-
-            // Set defaults for the simulation tracking fields
-            processes[*num_processes].remaining_time = burst;
-            processes[*num_processes].start_time = -1; // -1 means hasn't started yet
-            processes[*num_processes].finish_time = 0;
-            processes[*num_processes].turnaround_time = 0;
-            processes[*num_processes].waiting_time = 0;
-            processes[*num_processes].response_time = 0;
-            processes[*num_processes].priority = 0;
-            processes[*num_processes].time_in_queue = 0;
-
+            init_process(&processes[*num_processes], pid, arrival, burst);
             (*num_processes)++;
+
+            // // Initialize process fields securely
+            // strncpy(processes[*num_processes].pid, pid, 15);
+            // processes[*num_processes].pid[15] = '\0'; // Ensure null-termination
+            // processes[*num_processes].arrival_time = arrival;
+            // processes[*num_processes].burst_time = burst;
+
+            // // Set defaults for the simulation tracking fields
+            // processes[*num_processes].remaining_time = burst;
+            // processes[*num_processes].start_time = -1; // -1 means hasn't started yet
+            // processes[*num_processes].finish_time = 0;
+            // processes[*num_processes].turnaround_time = 0;
+            // processes[*num_processes].waiting_time = 0;
+            // processes[*num_processes].response_time = 0;
+            // processes[*num_processes].priority = 0;
+            // processes[*num_processes].time_in_queue = 0;
+
+            // (*num_processes)++;
         }
     }
 

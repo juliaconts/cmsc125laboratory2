@@ -24,4 +24,6 @@ typedef struct
     int time_in_queue; // Allotment tracking
 } Process;
 
+void init_process(Process *p, const char *pid, int arrival, int burst);
+
 #endif
