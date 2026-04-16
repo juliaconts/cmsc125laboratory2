@@ -133,7 +133,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
             current->time_in_queue++;
             time_slice++;
 
-            record_gantt(state->gantt_blocks, &state->num_blocks,
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS,
                          current->pid, time, 1);
 
             // Process finished
@@ -201,7 +201,7 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
         else
         {
             // CPU idle
-            record_gantt(state->gantt_blocks, &state->num_blocks, "-", time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, "-", time, 1);
         }
 
         time++;

@@ -12,7 +12,7 @@ void init_gantt_chart(GanttBlock *blocks, int max_blocks)
 }
 
 // record the gantt chart
-void record_gantt(GanttBlock *blocks, int *num_blocks, const char *pid, int start_time, int duration)
+void record_gantt(GanttBlock *blocks, int *num_blocks, int max_blocks, const char *pid, int start_time, int duration)
 {
     if (*num_blocks > 0 && strcmp(blocks[*num_blocks - 1].pid, pid) == 0)
     {
@@ -21,6 +21,17 @@ void record_gantt(GanttBlock *blocks, int *num_blocks, const char *pid, int star
     }
     else
     {
+        if (*num_blocks >= max_blocks)
+        {
+            // Optional: Print warning why chart is cut short
+            static int warned = 0;
+            if (!warned)
+            {
+                fprintf(stderr, "\nWarning: Gantt chart capacity reached. Some blocks omitted.\n");
+                warned = 1;
+            }
+            return;
+        }
         // Add new block
         strncpy(blocks[*num_blocks].pid, pid, 15);
         blocks[*num_blocks].pid[15] = '\0';

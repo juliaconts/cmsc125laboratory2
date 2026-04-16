@@ -5,8 +5,6 @@
 #include "utils.h"
 #include "gantt.h"
 
-#define MAX_BLOCKS 10000
-
 int schedule_rr(SchedulerState *state, int quantum)
 {
     printf("\nRunning RR Scheduler...");
@@ -66,8 +64,7 @@ int schedule_rr(SchedulerState *state, int quantum)
             current->remaining_time--;
             time_slice++;
 
-            record_gantt(state->gantt_blocks, &state->num_blocks,
-                         current->pid, time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, time, 1);
 
             // Case A: Process finished
             if (current->remaining_time == 0)
@@ -93,7 +90,7 @@ int schedule_rr(SchedulerState *state, int quantum)
         else
         {
             // CPU idle
-            record_gantt(state->gantt_blocks, &state->num_blocks,
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS,
                          "-", time, 1);
         }
 

@@ -103,6 +103,7 @@ int schedule_stcf(SchedulerState *state)
 
             record_gantt(state->gantt_blocks,
                          &state->num_blocks,
+                         MAX_BLOCKS,
                          current->pid,
                          time,
                          1);
@@ -111,6 +112,7 @@ int schedule_stcf(SchedulerState *state)
         {
             record_gantt(state->gantt_blocks,
                          &state->num_blocks,
+                         MAX_BLOCKS,
                          "-",
                          time,
                          1);

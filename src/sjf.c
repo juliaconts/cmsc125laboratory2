@@ -55,12 +55,12 @@ int schedule_sjf(SchedulerState *state)
         // 4. Execute current process
         if (current != NULL)
         {
-            record_gantt(state->gantt_blocks, &state->num_blocks, current->pid, time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, time, 1);
             current->remaining_time--;
         }
         else
         {
-            record_gantt(state->gantt_blocks, &state->num_blocks, "-", time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, "-", time, 1);
         }
 
         time++;

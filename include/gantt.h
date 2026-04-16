@@ -18,7 +18,7 @@ typedef struct
 void init_gantt_chart(GanttBlock *blocks, int max_blocks);
 
 // Record a new block (or extend last if same PID)
-void record_gantt(GanttBlock *blocks, int *num_blocks, const char *pid, int start_time, int duration);
+void record_gantt(GanttBlock *blocks, int *num_blocks, int max_blocks, const char *pid, int start_time, int duration);
 
 // Print Gantt chart with optional scaling
 void print_gantt_chart(GanttBlock *blocks, int num_blocks);

@@ -39,7 +39,7 @@ int schedule_fcfs(SchedulerState *state)
         // 2. Handles CPU idle (no process is ready yet, there is a gap between the start and the next process's arrival)
         if (current == NULL)
         {
-            record_gantt(state->gantt_blocks, &state->num_blocks, "-", current_time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, "-", current_time, 1);
             current_time++;
             continue;
         }
@@ -47,7 +47,7 @@ int schedule_fcfs(SchedulerState *state)
         // 3. Execute process to completion
         for (int t = 0; t < current->remaining_time; t++)
         {
-            record_gantt(state->gantt_blocks, &state->num_blocks, current->pid, current_time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, current_time, 1);
             current_time++;
         }
 
