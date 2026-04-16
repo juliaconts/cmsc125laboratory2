@@ -1,9 +1,10 @@
 #ifndef MLFQ_H
 #define MLFQ_H
 
-#define MAX_QUEUES 3
+#define MAX_QUEUES 10
 
-typedef struct {
+typedef struct
+{
     int num_queues;
     int time_quantum[MAX_QUEUES];
     int allotment[MAX_QUEUES];

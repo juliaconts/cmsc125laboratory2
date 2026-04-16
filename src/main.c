@@ -116,6 +116,13 @@ int load_mlfq_config(const char *filename, MLFQConfig *cfg)
 
             if (sscanf(line, "%s %d %d", qid, &quantum, &allot) == 3)
             {
+                if (cfg->num_queues >= MAX_QUEUES)
+                {
+                    fprintf(stderr, "Warning: Maximum number of queues (%d) reached. "
+                                    "Ignoring extra queues in config file.\n",
+                            MAX_QUEUES);
+                    break;
+                }
                 int i = cfg->num_queues;
 
                 cfg->time_quantum[i] = quantum;
