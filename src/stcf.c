@@ -5,7 +5,6 @@
 #include "utils.h"
 #include "gantt.h"
 
-#define MAX_BLOCKS 10000
 #define MAX_MESSAGES 1000
 
 int schedule_stcf(SchedulerState *state)
