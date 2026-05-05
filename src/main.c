@@ -17,7 +17,6 @@ Process *parse_workload_file(const char *filename, int *num_processes)
         return NULL;
     }
 
-    // Start with space for 10 processes, expand if needed
     int capacity = 10;
     Process *processes = malloc(capacity * sizeof(Process));
     if (!processes)
@@ -30,20 +29,31 @@ Process *parse_workload_file(const char *filename, int *num_processes)
     *num_processes = 0;
     char line[256];
 
-    // Read file line by line
     while (fgets(line, sizeof(line), file))
     {
-        // Skip comments starting with '#' and empty lines
-        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
+        // FIX 1: Skip leading whitespace to handle indented comments
+        char *ptr = line;
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r')
+            ptr++;
+
+        // Skip comments and empty lines after skipping whitespace
+        if (*ptr == '#' || *ptr == '\n' || *ptr == '\0')
             continue;
 
         char pid[16];
         int arrival, burst;
 
-        // Format: PID ArrivalTime BurstTime
-        if (sscanf(line, "%15s %d %d", pid, &arrival, &burst) == 3)
+        // FIX 2: Added %15s to bound the PID string
+        if (sscanf(ptr, "%15s %d %d", pid, &arrival, &burst) == 3)
         {
-            // Expand array dynamically if we hit the limit
+            // FIX 3: Validate that arrival and burst are non-negative
+            if (arrival < 0 || burst <= 0)
+            {
+                fprintf(stderr, "Warning: Skipping invalid process %s (Arrival: %d, Burst: %d)\n",
+                        pid, arrival, burst);
+                continue;
+            }
+
             if (*num_processes >= capacity)
             {
                 capacity *= 2;
@@ -60,24 +70,6 @@ Process *parse_workload_file(const char *filename, int *num_processes)
 
             init_process(&processes[*num_processes], pid, arrival, burst);
             (*num_processes)++;
-
-            // // Initialize process fields securely
-            // strncpy(processes[*num_processes].pid, pid, 15);
-            // processes[*num_processes].pid[15] = '\0'; // Ensure null-termination
-            // processes[*num_processes].arrival_time = arrival;
-            // processes[*num_processes].burst_time = burst;
-
-            // // Set defaults for the simulation tracking fields
-            // processes[*num_processes].remaining_time = burst;
-            // processes[*num_processes].start_time = -1; // -1 means hasn't started yet
-            // processes[*num_processes].finish_time = 0;
-            // processes[*num_processes].turnaround_time = 0;
-            // processes[*num_processes].waiting_time = 0;
-            // processes[*num_processes].response_time = 0;
-            // processes[*num_processes].priority = 0;
-            // processes[*num_processes].time_in_queue = 0;
-
-            // (*num_processes)++;
         }
     }
 
@@ -100,34 +92,39 @@ int load_mlfq_config(const char *filename, MLFQConfig *cfg)
 
     while (fgets(line, sizeof(line), file))
     {
-        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
-        {
-            continue;
-        }
+        // FIX 1 (MLFQ): Skip leading whitespace
+        char *ptr = line;
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r')
+            ptr++;
 
-        if (strncmp(line, "BOOST_PERIOD", 12) == 0)
+        if (*ptr == '#' || *ptr == '\n' || *ptr == '\0')
+            continue;
+
+        if (strncmp(ptr, "BOOST_PERIOD", 12) == 0)
         {
-            sscanf(line, "BOOST_PERIOD %d", &cfg->boost_period);
+            sscanf(ptr, "BOOST_PERIOD %d", &cfg->boost_period);
         }
         else
         {
             char qid[10];
             int quantum, allot;
 
-            if (sscanf(line, "%s %d %d", qid, &quantum, &allot) == 3)
+            // FIX 4: Changed %s to %9s to prevent buffer overflow in qid[10]
+            if (sscanf(ptr, "%9s %d %d", qid, &quantum, &allot) == 3)
             {
                 if (cfg->num_queues >= MAX_QUEUES)
                 {
-                    fprintf(stderr, "Warning: Maximum number of queues (%d) reached. "
-                                    "Ignoring extra queues in config file.\n",
-                            MAX_QUEUES);
+                    fprintf(stderr, "Warning: Maximum number of queues (%d) reached.\n", MAX_QUEUES);
                     break;
                 }
-                int i = cfg->num_queues;
 
+                // Optional: Validate quantum and allotment are positive
+                if (quantum <= 0 || allot <= 0)
+                    continue;
+
+                int i = cfg->num_queues;
                 cfg->time_quantum[i] = quantum;
                 cfg->allotment[i] = allot;
-
                 cfg->num_queues++;
             }
         }
