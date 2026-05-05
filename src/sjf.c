@@ -13,17 +13,16 @@ int schedule_sjf(SchedulerState *state)
     printf("Starting SJF Simulation...\n");
 
     state->num_blocks = 0;
-    init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
 
     int completed = 0;
-    int time = 0;
+    int current_time = state->current_time;
 
     while (completed < state->num_processes)
     {
         // 1. Handle Arrivals
         for (int i = 0; i < state->num_processes; i++)
         {
-            if (state->processes[i].arrival_time == time)
+            if (state->processes[i].arrival_time == current_time)
             {
                 enqueue(&ready_queue, &state->processes[i]);
             }
@@ -32,12 +31,15 @@ int schedule_sjf(SchedulerState *state)
         // 2. Handle Completion
         if (current != NULL && current->remaining_time == 0)
         {
-            current->finish_time = time;
+            current->finish_time = current_time;
             current->turnaround_time = current->finish_time - current->arrival_time;
             current->waiting_time = current->turnaround_time - current->burst_time;
             current->response_time = current->start_time - current->arrival_time;
             completed++;
             current = NULL; // CPU is now free
+
+            if (completed == state->num_processes)
+                break; // All done, stop immediately to avoid extra idle time
         }
 
         // 3. Schedule next process (Non-preemptive: only schedule if CPU is free)
@@ -48,23 +50,24 @@ int schedule_sjf(SchedulerState *state)
             // Record start time if this is the first time running
             if (current->start_time == -1)
             {
-                current->start_time = time;
+                current->start_time = current_time;
             }
         }
 
         // 4. Execute current process
         if (current != NULL)
         {
-            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, current_time, 1);
             current->remaining_time--;
+            current_time++;
         }
         else
         {
-            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, "-", time, 1);
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, "-", current_time, 1);
+            current_time++;
         }
-
-        time++;
     }
+    state->current_time = current_time;
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
 
     printf("\nSJF Simulation Complete.\n");

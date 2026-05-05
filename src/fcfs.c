@@ -8,8 +8,8 @@ int schedule_fcfs(SchedulerState *state)
     int completed = 0;
     Process *processes = state->processes;
     int num_processes = state->num_processes;
-    int current_time = 0;
-    Process *current = NULL; // pointer to the currently running process; NULL means CPU is idle
+    int current_time = state->current_time; // using the global current_time
+    Process *current = NULL;                // pointer to the currently running process; NULL means CPU is idle
 
     state->num_blocks = 0; // reset Gantt chart
 
@@ -48,10 +48,10 @@ int schedule_fcfs(SchedulerState *state)
         for (int t = 0; t < current->remaining_time; t++)
         {
             record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, current_time, 1);
-            current_time++;
         }
 
         // 4. Record completion metrics
+        current_time += current->remaining_time; // move time forward by the burst time of the current process
         current->finish_time = current_time;
         current->turnaround_time = current->finish_time - current->arrival_time;
         current->waiting_time = current->turnaround_time - current->burst_time;
@@ -62,6 +62,7 @@ int schedule_fcfs(SchedulerState *state)
         current = NULL; // resets the CPU for the next process
     }
 
+    state->current_time = current_time; // updates the global current_time to reflect the total time taken
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
     return 0;
 }

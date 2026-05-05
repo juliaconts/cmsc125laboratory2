@@ -14,7 +14,7 @@ int schedule_rr(SchedulerState *state, int quantum)
     init_queue(&ready_queue); // starts with an empty FIFO queue
 
     int completed = 0;
-    int time = state->current_time;
+    int current_time = state->current_time;
     int context_switches = 0;
 
     Process *current = NULL;
@@ -23,7 +23,6 @@ int schedule_rr(SchedulerState *state, int quantum)
     char prev_pid[16] = "";
 
     state->num_blocks = 0;
-    init_gantt_chart(state->gantt_blocks, MAX_BLOCKS);
 
     // runs one tick at a time until every process has finished
     while (completed < state->num_processes)
@@ -31,7 +30,7 @@ int schedule_rr(SchedulerState *state, int quantum)
         // 1. Add newly arriving processes (checks every process to see if it arrives at this tick)
         for (int i = 0; i < state->num_processes; i++)
         {
-            if (state->processes[i].arrival_time == time)
+            if (state->processes[i].arrival_time == current_time)
             {
                 enqueue(&ready_queue, &state->processes[i]);
             }
@@ -53,7 +52,7 @@ int schedule_rr(SchedulerState *state, int quantum)
 
             // Record the very first run this process gets the CPU
             if (current->start_time == -1)
-                current->start_time = time;
+                current->start_time = current_time;
 
             strcpy(prev_pid, current->pid); // keeps track who is running for the next context-switch comparison
         }
@@ -61,15 +60,16 @@ int schedule_rr(SchedulerState *state, int quantum)
         // 3. Execute
         if (current != NULL)
         {
+            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, current_time, 1);
+
             current->remaining_time--;
             time_slice++;
-
-            record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS, current->pid, time, 1);
+            current_time++;
 
             // Case A: Process finished
             if (current->remaining_time == 0)
             {
-                current->finish_time = time + 1;
+                current->finish_time = current_time + 1;
                 current->turnaround_time =
                     current->finish_time - current->arrival_time;
                 current->waiting_time =
@@ -91,13 +91,12 @@ int schedule_rr(SchedulerState *state, int quantum)
         {
             // CPU idle
             record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS,
-                         "-", time, 1);
+                         "-", current_time, 1);
+            current_time++;
         }
-
-        time++;
     }
 
-    state->current_time = time;
+    state->current_time = current_time;
 
     // Print Gantt chart
     print_gantt_chart(state->gantt_blocks, state->num_blocks);
