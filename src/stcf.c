@@ -115,6 +115,11 @@ int schedule_stcf(SchedulerState *state)
                          "-",
                          time,
                          1);
+                         
+            // FIX: Clear previous process pointers during idle
+            prev_pid[0] = '\0';
+            if (prev_process != NULL) prev_process = NULL;
+            
         }
 
         time++;

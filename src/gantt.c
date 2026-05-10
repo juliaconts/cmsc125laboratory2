@@ -57,18 +57,27 @@ void print_gantt_chart(GanttBlock *blocks, int num_blocks)
     if (max_time > 100)
         scale = 10; // Each char = 10 time units
 
-    // Print PID blocks
+   // Print PID blocks
     for (int i = 0; i < num_blocks; i++)
     {
         printf("[");
         int chars = blocks[i].duration / scale;
         if (chars < 1)
             chars = 1;
-        for (int j = 0; j < chars; j++)
-            printf("%c", blocks[i].pid[0]);
+            
+        // If idle block, fill with dashes
+        if (strcmp(blocks[i].pid, "-") == 0) {
+            for (int j = 0; j < chars; j++) printf("-");
+        } 
+        // If process, print full PID and pad with spaces
+        else {
+            int pid_len = strlen(blocks[i].pid);
+            int width = (chars > pid_len) ? chars : pid_len;
+            printf("%s", blocks[i].pid);
+            for (int j = 0; j < width - pid_len; j++) printf(" ");
+        }
         printf("]");
     }
-    printf("\n");
 
     // Print scaled time markers
     printf("Time: ");

@@ -92,6 +92,10 @@ int schedule_rr(SchedulerState *state, int quantum)
             // CPU idle
             record_gantt(state->gantt_blocks, &state->num_blocks, MAX_BLOCKS,
                          "-", current_time, 1);
+            
+            // FIX: Clear previous process memory so idle transition isn't counted as a switch
+            prev_pid[0] = '\0'; 
+            
             current_time++;
         }
     }
