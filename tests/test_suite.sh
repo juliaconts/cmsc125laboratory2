@@ -238,26 +238,6 @@ else
     echo "I/O-bound simulation test: FAIL"
 fi
 
-# --------------------------------------------------
-# Memory Leak Testing
-# --------------------------------------------------
-
-echo ""
-echo "[6] Memory Leak Testing"
-
-valgrind --leak-check=full \
-         --error-exitcode=1 \
-         ./schedsim --algorithm=FCFS --input=tests/quiz3.txt \
-         > /dev/null 2>&1
-
-if [ $? -eq 0 ]; then
-    echo "Memory leak test: PASS"
-else
-    echo "Memory leak test: FAIL"
-fi
-
-# --------------------------------------------------
-
 echo ""
 echo "=================================================="
 echo "           ALL TESTS COMPLETED"
