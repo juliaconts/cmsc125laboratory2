@@ -16,23 +16,6 @@ typedef struct
     int num_blocks;
 } SchedulerState;
 
-// Discrete-event definitions
-typedef enum
-{
-    EVENT_ARRIVAL,
-    EVENT_COMPLETION,
-    EVENT_QUANTUM_EXPIRE,
-    EVENT_PRIORITY_BOOST
-} EventType;
-
-typedef struct Event
-{
-    int time;
-    EventType type;
-    Process *process;
-    struct Event *next;
-} Event;
-
 // Function prototypes for the algorithms
 int schedule_fcfs(SchedulerState *state);
 int schedule_sjf(SchedulerState *state);
