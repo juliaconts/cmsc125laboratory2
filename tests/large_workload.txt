@@ -1,0 +1,4 @@
+for i in {1..120}
+do
+    echo "P$i $((i*2)) $((RANDOM%50+1))"
+done > tests/large_workload.txt

@@ -1,0 +1,12 @@
+# Quiz 3 workload from lesson3.md
+# Expected results from lecture
+A 0 240
+B 10 180
+C 20 150
+D 25 80
+E 30 130
+
+# FCFS average TT should be 515
+# SJF average TT should be 461
+# STCF average TT should be 393
+# RR (q=30) average TT should be 627
