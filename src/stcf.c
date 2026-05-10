@@ -115,11 +115,11 @@ int schedule_stcf(SchedulerState *state)
                          "-",
                          time,
                          1);
-                         
+
             // FIX: Clear previous process pointers during idle
             prev_pid[0] = '\0';
-            if (prev_process != NULL) prev_process = NULL;
-            
+            if (prev_process != NULL)
+                prev_process = NULL;
         }
 
         time++;
@@ -142,6 +142,12 @@ int schedule_stcf(SchedulerState *state)
     // ✅ Print messages AFTER
     for (int i = 0; i < num_messages; i++)
         printf("%s\n", messages[i]);
+
+    // cleanup remaining queue nodes
+    while (!is_empty(&ready_queue))
+    {
+        dequeue(&ready_queue);
+    }
 
     return 0;
 }

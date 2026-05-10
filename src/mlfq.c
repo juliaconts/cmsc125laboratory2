@@ -214,5 +214,14 @@ int schedule_mlfq(SchedulerState *state, MLFQConfig *cfg)
         printf("  - Turnaround time: %d\n", state->processes[longest_idx].turnaround_time);
     }
 
+    // cleanup all remaining queue nodes
+    for (int i = 0; i < cfg->num_queues; i++)
+    {
+        while (!is_empty(&queues[i]))
+        {
+            dequeue(&queues[i]);
+        }
+    }
+
     return 0;
 }
